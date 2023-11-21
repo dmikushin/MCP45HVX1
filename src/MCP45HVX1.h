@@ -13,55 +13,70 @@
 #include <Arduino.h>
 #include <Wire.h>
 
-#define MCPCSPEED 100000 // I2C clock speed
+namespace mcp {
+
+enum MCPError {
+  MCPSuccess = 0,
+  MCPErrorLengthTooLong = 1,
+  MCPErrorAddressSentNackReceived = 2,
+  MCPErrorDataSentNackReceived = 3,
+  MCPErrorOther = 4, // lost bus arbitration, bus error, etc.
+  MCPErrorTimeout = 5
+};
+
+/* TCON Register Resistor Configuration ............................... */
+struct TCONRegister {
+  bool R0HW = true;
+  bool R0A = true;
+  bool R0B = true;
+  bool R0W = true;
+};
 
 class MCP45HVX1 {
 public:
-  /* TCON Register Resistor Configuration ............................... */
-  typedef struct {
-    bool R0HW = true;
-    bool R0A = true;
-    bool R0B = true;
-    bool R0W = true;
-  } TCON_Register;
+  static const uint32_t MCPClockSpeed = 100000;
 
   /* Setup ............................................................... */
+  MCP45HVX1(TwoWire &wire = Wire, uint8_t address = 0x3C);
+
   MCP45HVX1(uint8_t address = 0x3C);
 
-  void begin(TwoWire &inWire = Wire);
+  void begin(uint32_t speed = MCPClockSpeed);
 
   /* Wiper Register ...................................................... */
-  uint8_t readWiper();
-  void writeWiper(uint8_t wiperValue);
-  void incrementWiper(uint8_t incriments = 1);
-  void decrementWiper(uint8_t decriments = 1);
+  MCPError readWiper(uint8_t &wiperValue);
+  MCPError writeWiper(uint8_t wiperValue);
+  MCPError incrementWiper(uint8_t increments = 1);
+  MCPError decrementWiper(uint8_t decrements = 1);
 
   /* TCON Register ....................................................... */
-  uint8_t readTCON();
-  void writeTCON(TCON_Register *inReg);
-  void defaultTCON();
+  MCPError readTCON(TCONRegister &reg);
+  MCPError writeTCON(const TCONRegister &reg);
+  MCPError defaultTCON();
 
-  void inline shutdown() { write_TCON_R0HW(false); };
-  void inline startup() { write_TCON_R0HW(true); };
-  void inline connectTerminalA() { write_TCON_R0A(true); };
-  void inline disconnectTerminalA() { write_TCON_R0A(false); };
-  void inline connectTerminalB() { write_TCON_R0B(true); };
-  void inline disconnectTerminalB() { write_TCON_R0B(false); };
-  void inline connectWiper() { write_TCON_R0W(true); };
-  void inline disconnectWiper() { write_TCON_R0W(false); };
+  MCPError inline shutdown() { write_TCON_R0HW(false); };
+  MCPError inline startup() { write_TCON_R0HW(true); };
+  MCPError inline connectTerminalA() { write_TCON_R0A(true); };
+  MCPError inline disconnectTerminalA() { write_TCON_R0A(false); };
+  MCPError inline connectTerminalB() { write_TCON_R0B(true); };
+  MCPError inline disconnectTerminalB() { write_TCON_R0B(false); };
+  MCPError inline connectWiper() { write_TCON_R0W(true); };
+  MCPError inline disconnectWiper() { write_TCON_R0W(false); };
 
-protected:
 private:
   uint8_t _address;
 
-  TwoWire *MCPWire;
-  TCON_Register TCON_lib_reg;
+  TwoWire& _wire;
+  TCONRegister TCON_lib_reg;
 
-  void write_TCON_Register();
-  void write_TCON_R0HW(bool state);
-  void write_TCON_R0A(bool state);
-  void write_TCON_R0W(bool state);
-  void write_TCON_R0B(bool state);
+  MCPError write_TCONRegister();
+  MCPError write_TCON_R0HW(bool state);
+  MCPError write_TCON_R0A(bool state);
+  MCPError write_TCON_R0W(bool state);
+  MCPError write_TCON_R0B(bool state);
 };
 
+} // namespace mcp
+
 #endif
+

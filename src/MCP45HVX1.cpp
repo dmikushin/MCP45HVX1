@@ -36,138 +36,150 @@
 #define COM_WIPERINC (0x04)
 #define COM_WIPERDEC (0x08)
 
-/* Setup ............................................................... */
-MCP45HVX1::MCP45HVX1(uint8_t address) : _address(address){};
+using namespace mcp;
 
-void MCP45HVX1::begin(TwoWire &inWire) {
-  MCPWire = &inWire;
-  this->MCPWire->begin();
-  this->MCPWire->setClock(MCPCSPEED);
+/* Setup ............................................................... */
+MCP45HVX1::MCP45HVX1(TwoWire& wire, uint8_t address) : _wire(wire), _address(address) { };
+
+MCP45HVX1::MCP45HVX1(uint8_t address) : _wire(Wire), _address(address) { };
+
+void MCP45HVX1::begin(uint32_t clock) {
+  _wire.begin();
+  _wire.setClock(clock);
 }
 
 /* Wiper Register..........................................................*/
-void MCP45HVX1::writeWiper(uint8_t wiperValue) {
-  this->MCPWire->beginTransmission(_address);
-  this->MCPWire->write(MEM_WIPER | COM_WRITE);
-  this->MCPWire->write(wiperValue);
-  this->MCPWire->endTransmission();
+MCPError MCP45HVX1::writeWiper(uint8_t wiperValue) {
+  _wire.beginTransmission(_address);
+  _wire.write(MEM_WIPER | COM_WRITE);
+  _wire.write(wiperValue);
+  return static_cast<MCPError>(_wire.endTransmission());
 }
 
-uint8_t MCP45HVX1::readWiper() {
-  uint8_t buff = 0;
+MCPError MCP45HVX1::readWiper(uint8_t& buf) {
+  _wire.beginTransmission(_address);
+  _wire.write(MEM_WIPER | COM_READ);
+  uint8_t status = _wire.endTransmission(false);
+  if (status != 0)
+    return static_cast<MCPError>(status);
 
-  this->MCPWire->beginTransmission(_address);
-  this->MCPWire->write(MEM_WIPER | COM_READ);
-  this->MCPWire->endTransmission(false);
+  if (_wire.requestFrom(_address, (uint8_t)2) != 2)
+    return MCPErrorOther;
 
-  this->MCPWire->requestFrom(_address, (uint8_t)2);
-  if (this->MCPWire->available()) {
-    buff = this->MCPWire->read(); // First byte is 0x00
+  buf = _wire.read(); // First byte is 0x00
 #if DEBUG
-    Serial.print("\nRead Wiper MSB:  ");
-    Serial.println(buff);
+  Serial.print("\nRead Wiper MSB:  ");
+  Serial.println(buf);
 #endif
-    buff = this->MCPWire->read(); // Second byte contains the wiper value
+  buf = _wire.read(); // Second byte contains the wiper value
 #if DEBUG
-    Serial.print("Read Wiper LSB:  ");
-    Serial.println(buff);
+  Serial.print("Read Wiper LSB:  ");
+  Serial.println(buf);
 #endif
-  }
 
-  return buff;
+  return MCPSuccess;
 }
 
-void MCP45HVX1::incrementWiper(uint8_t incriments) {
-  this->MCPWire->beginTransmission(_address);
-  for (uint8_t x = 0; x < incriments; x++) {
-    this->MCPWire->write(MEM_WIPER | COM_WIPERINC);
+MCPError MCP45HVX1::incrementWiper(uint8_t increments) {
+  _wire.beginTransmission(_address);
+  for (uint8_t x = 0; x < increments; x++) {
+    _wire.write(MEM_WIPER | COM_WIPERINC);
   }
-  this->MCPWire->endTransmission();
+  return static_cast<MCPError>(_wire.endTransmission());
 }
 
-void MCP45HVX1::decrementWiper(uint8_t decriments) {
-  this->MCPWire->beginTransmission(_address);
-  for (uint8_t x = 0; x < decriments; x++) {
-    this->MCPWire->write(MEM_WIPER | COM_WIPERDEC);
+MCPError MCP45HVX1::decrementWiper(uint8_t decrements) {
+  _wire.beginTransmission(_address);
+  for (uint8_t x = 0; x < decrements; x++) {
+    _wire.write(MEM_WIPER | COM_WIPERDEC);
   }
-  this->MCPWire->endTransmission();
+  return static_cast<MCPError>(_wire.endTransmission());
 }
 
 /* TCON Register...........................................................*/
-uint8_t MCP45HVX1::readTCON() {
-  uint8_t buff = 0;
+MCPError MCP45HVX1::readTCON(TCONRegister &reg) {
+  uint8_t buf = 0xF0;
+  _wire.beginTransmission(_address);
+  _wire.write(MEM_TCON | COM_READ);
+  uint8_t status = _wire.endTransmission(false);
+  if (status != 0)
+    return static_cast<MCPError>(status);
 
-  this->MCPWire->beginTransmission(_address);
-  this->MCPWire->write(MEM_TCON | COM_READ);
-  this->MCPWire->endTransmission(false);
+  if (_wire.requestFrom(_address, (uint8_t)2) != 2)
+    return MCPErrorOther;
 
-  this->MCPWire->requestFrom(_address, (uint8_t)2);
-  if (this->MCPWire->available()) {
-    buff = this->MCPWire->read(); // First byte is always 0x00
+  buf = _wire.read(); // First byte is always 0x00
 #if DEBUG
-    Serial.print("\nRead TCON MSB:  ");
-    Serial.println(buff);
+  Serial.print("\nRead TCON MSB:  ");
+  Serial.println(buf);
 #endif
-    buff = this->MCPWire->read(); // Second byte contains the wiper value (for
+  buf = _wire.read(); // Second byte contains the wiper value (for
                                   // compatability)
 #if DEBUG
-    Serial.print("Read TCON LSB:  ");
-    Serial.println(buff);
+  Serial.print("Read TCON LSB:  ");
+  Serial.println(buf);
 #endif
-  }
 
-  return buff;
+  memset(&this->TCON_lib_reg, 0, sizeof(TCONRegister));
+  this->TCON_lib_reg.R0HW = buf & TCON_R0HW ? true : false;
+  this->TCON_lib_reg.R0A = buf & TCON_R0A ? true : false;
+  this->TCON_lib_reg.R0B = buf & TCON_R0B ? true : false;
+  this->TCON_lib_reg.R0W = buf & TCON_R0W ? true : false;
+
+  memcpy(&reg, &this->TCON_lib_reg, sizeof(TCONRegister));
+
+  return MCPSuccess;
 }
 
-void MCP45HVX1::defaultTCON() {
+MCPError MCP45HVX1::defaultTCON() {
   this->TCON_lib_reg.R0HW = true;
   this->TCON_lib_reg.R0A = true;
   this->TCON_lib_reg.R0B = true;
   this->TCON_lib_reg.R0W = true;
 
-  write_TCON_Register();
+  return static_cast<MCPError>(write_TCONRegister());
 }
 
-void MCP45HVX1::writeTCON(TCON_Register *inReg) {
-  memcpy(&this->TCON_lib_reg, inReg, sizeof(this->TCON_lib_reg));
-  write_TCON_Register();
+MCPError MCP45HVX1::writeTCON(const TCONRegister &reg) {
+  memcpy(&this->TCON_lib_reg, &reg, sizeof(TCONRegister));
+  return static_cast<MCPError>(write_TCONRegister());
 }
 
-void MCP45HVX1::write_TCON_R0HW(bool isOn) {
+MCPError MCP45HVX1::write_TCON_R0HW(bool isOn) {
   this->TCON_lib_reg.R0HW = isOn;
-  write_TCON_Register();
+  return static_cast<MCPError>(write_TCONRegister());
 }
 
-void MCP45HVX1::write_TCON_R0A(bool isOn) {
+MCPError MCP45HVX1::write_TCON_R0A(bool isOn) {
   this->TCON_lib_reg.R0A = isOn;
-  write_TCON_Register();
+  return static_cast<MCPError>(write_TCONRegister());
 }
 
-void MCP45HVX1::write_TCON_R0W(bool isOn) {
+MCPError MCP45HVX1::write_TCON_R0W(bool isOn) {
   this->TCON_lib_reg.R0W = isOn;
-  write_TCON_Register();
+  return static_cast<MCPError>(write_TCONRegister());
 }
 
-void MCP45HVX1::write_TCON_R0B(bool isOn) {
+MCPError MCP45HVX1::write_TCON_R0B(bool isOn) {
   this->TCON_lib_reg.R0B = isOn;
-  write_TCON_Register();
+  return static_cast<MCPError>(write_TCONRegister());
 }
 
-void MCP45HVX1::write_TCON_Register() {
-  uint8_t buff = 0xFF;
+MCPError MCP45HVX1::write_TCONRegister() {
+  uint8_t buf = 0xF0;
 
-  this->TCON_lib_reg.R0HW ? (buff |= TCON_R0HW) : (buff ^= TCON_R0HW);
-  this->TCON_lib_reg.R0A ? (buff |= TCON_R0A) : (buff ^= TCON_R0A);
-  this->TCON_lib_reg.R0B ? (buff |= TCON_R0B) : (buff ^= TCON_R0B);
-  this->TCON_lib_reg.R0W ? (buff |= TCON_R0W) : (buff ^= TCON_R0W);
+  buf |= this->TCON_lib_reg.R0HW ? TCON_R0HW : 0;
+  buf |= this->TCON_lib_reg.R0A ? TCON_R0A : 0;
+  buf |= this->TCON_lib_reg.R0B ? TCON_R0B : 0;
+  buf |= this->TCON_lib_reg.R0W ? TCON_R0W : 0;
 
 #if DEBUG
   Serial.print("Writing TCON: ");
-  Serial.println(buff);
+  Serial.println(buf);
 #endif
 
-  this->MCPWire->beginTransmission(_address);
-  this->MCPWire->write(MEM_TCON | COM_WRITE);
-  this->MCPWire->write(buff);
-  this->MCPWire->endTransmission();
+  _wire.beginTransmission(_address);
+  _wire.write(MEM_TCON | COM_WRITE);
+  _wire.write(buf);
+  return static_cast<MCPError>(_wire.endTransmission());
 }

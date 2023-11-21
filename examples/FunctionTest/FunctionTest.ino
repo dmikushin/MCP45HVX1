@@ -1,5 +1,20 @@
-#include <Arduino.h>
 #include "MCP45HVX1.h"
+
+#define CHECK_ERROR(call) \
+  do { \
+    auto status = call; \
+    if (status != MCPSuccess) { \
+      Serial.print("Error "); \
+      Serial.print(status); \
+      Serial.print(" at "); \
+      Serial.print(__FILE__); \
+      Serial.print(":"); \
+      Serial.println(__LINE__); \
+    } \
+  } \
+  while (0)
+
+using namespace mcp;
 
 MCP45HVX1 digiPot(0x3C);
 
@@ -11,68 +26,101 @@ void setup()
 
   Serial.println("....... Functionality Test Begin ..........");
   /* Wiper ........................... */
-  digiPot.writeWiper(127);                 // Baseline Establish
+  CHECK_ERROR(digiPot.writeWiper(127));                 // Baseline Establish
 
   Serial.println("\n----- Wiper Register ----");
   Serial.print("readWiper: ");
-  Serial.println(digiPot.readWiper());
+  uint8_t wiperValue;
+  CHECK_ERROR(digiPot.readWiper(wiperValue));
+  Serial.println(wiperValue);
 
   Serial.print("writeWiper: ");
-  digiPot.writeWiper(200);
-  Serial.println(digiPot.readWiper());
-  
+  CHECK_ERROR(digiPot.writeWiper(200));
+  CHECK_ERROR(digiPot.readWiper(wiperValue));
+  Serial.println(wiperValue);
+
   Serial.print("incrementWiper: ");
-  digiPot.incrementWiper();
-  Serial.println(digiPot.readWiper());
+  CHECK_ERROR(digiPot.incrementWiper());
+  CHECK_ERROR(digiPot.readWiper(wiperValue));
+  Serial.println(wiperValue);
 
   Serial.print("incrementWiper by 2: ");
-  digiPot.incrementWiper(2);
-  Serial.println(digiPot.readWiper());
+  CHECK_ERROR(digiPot.incrementWiper(2));
+  CHECK_ERROR(digiPot.readWiper(wiperValue));
+  Serial.println(wiperValue);
 
   Serial.print("decrementWiper: ");
-  digiPot.decrementWiper();
-  Serial.println(digiPot.readWiper());
+  CHECK_ERROR(digiPot.decrementWiper());
+  CHECK_ERROR(digiPot.readWiper(wiperValue));
+  Serial.println(wiperValue);
 
   Serial.print("decrementWiper by 2: ");
-  digiPot.decrementWiper(2);
-  Serial.println(digiPot.readWiper());
+  CHECK_ERROR(digiPot.decrementWiper(2));
+  CHECK_ERROR(digiPot.readWiper(wiperValue));
+  Serial.println(wiperValue);
 
   /* TCON .......................... */
   Serial.println("\n----- TCON Register ----");
-  digiPot.disconnectTerminalA();
+  CHECK_ERROR(digiPot.disconnectTerminalA());
   Serial.print("disconnectTerminalA: ");
-  Serial.println(digiPot.readTCON());
-  digiPot.connectTerminalA();
+  TCONRegister reg;
+  CHECK_ERROR(digiPot.readTCON(reg));
+  Serial.print(reg.R0A); Serial.print(" ");
+  Serial.print(reg.R0B); Serial.print(" ");
+  Serial.print(reg.R0HW); Serial.print(" ");
+  Serial.println(reg.R0W);
+  CHECK_ERROR(digiPot.connectTerminalA());
   
-  digiPot.disconnectTerminalB();
+  CHECK_ERROR(digiPot.disconnectTerminalB());
   Serial.print("disconnectTerminalB: ");
-  Serial.println(digiPot.readTCON());
-  digiPot.connectTerminalB();
+  CHECK_ERROR(digiPot.readTCON(reg));
+  Serial.print(reg.R0A); Serial.print(" ");
+  Serial.print(reg.R0B); Serial.print(" ");
+  Serial.print(reg.R0HW); Serial.print(" ");
+  Serial.println(reg.R0W);
+  CHECK_ERROR(digiPot.connectTerminalB());
 
-  digiPot.disconnectWiper();
+  CHECK_ERROR(digiPot.disconnectWiper());
   Serial.print("disconnectWiper: ");
-  Serial.println(digiPot.readTCON());
-  digiPot.connectWiper();
+  CHECK_ERROR(digiPot.readTCON(reg));
+  Serial.print(reg.R0A); Serial.print(" ");
+  Serial.print(reg.R0B); Serial.print(" ");
+  Serial.print(reg.R0HW); Serial.print(" ");
+  Serial.println(reg.R0W);
+  CHECK_ERROR(digiPot.connectWiper());
 
-  digiPot.shutdown();
+  CHECK_ERROR(digiPot.shutdown());
   Serial.print("shutdown: ");
-  Serial.println(digiPot.readTCON());
-  digiPot.startup();
+  CHECK_ERROR(digiPot.readTCON(reg));
+  Serial.print(reg.R0A); Serial.print(" ");
+  Serial.print(reg.R0B); Serial.print(" ");
+  Serial.print(reg.R0HW); Serial.print(" ");
+  Serial.println(reg.R0W);
+  CHECK_ERROR(digiPot.startup());
 
-  digiPot.startup();
+  CHECK_ERROR(digiPot.startup());
   Serial.print("startup: ");
-  Serial.println(digiPot.readTCON());
-  digiPot.startup();
+  CHECK_ERROR(digiPot.readTCON(reg));
+  Serial.print(reg.R0A); Serial.print(" ");
+  Serial.print(reg.R0B); Serial.print(" ");
+  Serial.print(reg.R0HW); Serial.print(" ");
+  Serial.println(reg.R0W);
+  CHECK_ERROR(digiPot.startup());
 
-  digiPot.defaultTCON();
+  CHECK_ERROR(digiPot.defaultTCON());
   Serial.print("default: ");
-  Serial.println(digiPot.readTCON());
+  CHECK_ERROR(digiPot.readTCON(reg));
+  Serial.print(reg.R0A); Serial.print(" ");
+  Serial.print(reg.R0B); Serial.print(" ");
+  Serial.print(reg.R0HW); Serial.print(" ");
+  Serial.println(reg.R0W);
 
   Serial.println("\n........ Functionality Test End ...........");
 }
 
 void loop()
 {
-  while(1==1);
+  while (1)
+    continue;
 } 
 
